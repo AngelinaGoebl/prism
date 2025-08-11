@@ -26,19 +26,26 @@
 
 package explicit;
 
-import java.util.BitSet;
-import java.util.PrimitiveIterator;
+import java.util.*;
 
 import acceptance.AcceptanceReach;
+import acceptance.AcceptanceType;
 import common.IntSet;
+import common.Interval;
 import common.IterableStateSet;
 import explicit.rewards.MCRewards;
 import explicit.rewards.Rewards;
 import parser.ast.Expression;
-import prism.AccuracyFactory;
-import prism.PrismComponent;
-import prism.PrismException;
-import prism.PrismFileLog;
+import prism.*;
+import explicit.UDistributionVertices;
+
+
+import com.gurobi.gurobi.GRB;
+import com.gurobi.gurobi.GRBEnv;
+import com.gurobi.gurobi.GRBException;
+import com.gurobi.gurobi.GRBLinExpr;
+import com.gurobi.gurobi.GRBModel;
+import com.gurobi.gurobi.GRBVar;
 
 /**
  * Explicit-state model checker for interval discrete-time Markov chains (IDTMCs).
@@ -46,7 +53,9 @@ import prism.PrismFileLog;
 public class IDTMCModelChecker extends ProbModelChecker
 {
 	// DTMCModelChecker in order to use e.g. precomputation algorithms
-	protected DTMCModelChecker mcDTMC = null; 
+	protected DTMCModelChecker mcDTMC = null;
+
+	protected IMDPSolnMethod imdpSolnMethod = IMDPSolnMethod.LINEAR_PROGRAMMING;
 	
 	/**
 	 * Create a new IDTMCModelChecker, inherit basic state from parent (unless null).
@@ -59,6 +68,117 @@ public class IDTMCModelChecker extends ProbModelChecker
 	}
 
 	// Model checking functions
+
+
+	@Override
+	protected StateValues checkProbPathFormulaLTL(Model<?> model, Expression expr, boolean qual, MinMax minMax, BitSet statesOfInterest) throws PrismException
+	{
+		// Build product of Markov chain and DA for the LTL formula, and do any required exports
+		LTLModelChecker mcLtl = new LTLModelChecker(this);
+		AcceptanceType[] allowedAcceptance = {
+				AcceptanceType.RABIN,
+				AcceptanceType.REACH,
+				AcceptanceType.BUCHI,
+				AcceptanceType.STREETT,
+				AcceptanceType.GENERIC
+		};
+		LTLModelChecker.LTLProduct<IDTMC<Double>> product = mcLtl.constructDAProductForLTLFormula(this, (IDTMC<Double>) model, expr, statesOfInterest, allowedAcceptance);
+		doProductExports(product);
+
+		// Find accepting states + compute reachability probabilities
+		BitSet acc;
+		if (product.getAcceptance() instanceof AcceptanceReach) {
+			mainLog.println("\nSkipping BSCC computation since acceptance is defined via goal states...");
+			acc = ((AcceptanceReach)product.getAcceptance()).getGoalStates();
+		} else {
+			mainLog.println("\nFinding accepting BSCCs...");
+			acc = mcLtl.findAcceptingBSCCs(product.getProductModel(), product.getAcceptance());
+		}
+		mainLog.println("\nComputing reachability probabilities...");
+
+
+
+
+
+		//New
+		// build partitions of states
+		int numOfPartitions = model.getNumStates(); //Do they start at 0?
+		List<Set<Integer>> partitions = new ArrayList<>(numOfPartitions);
+		for (int i = 0; i < numOfPartitions; i++) {
+			partitions.add(new LinkedHashSet<>());
+		}
+		for (int i=0; i<product.productModel.getNumStates(); i++){
+			partitions.get(product.getModelState(i)).add(i);
+		}
+
+		// build extreme distributions
+		// index of partition --> list of extreme distributions
+
+		mainLog.println("numofOriginal " + product.productModel.getNumStates());
+		mainLog.println("numofpartitions: " + numOfPartitions);
+		mainLog.println("numofstates: " + product.productModel.getNumStates());
+		for (int i=0; i<product.productModel.getNumStates(); i++){
+			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+		}
+		mainLog.println("partitions:" + partitions);
+
+		IDTMC<Double> idtmc = (IDTMC<Double>) model;
+		List<List<Interval<Double>>> marginals = new ArrayList<>();
+		Set<Integer> supportSet = new LinkedHashSet<>();
+
+		int numStatesModel = idtmc.getNumStates();
+		for (int i = 0; i < numOfPartitions; i++) {
+			List<Interval<Double>> marginal = new ArrayList<>(Collections.nCopies(numStatesModel, new Interval<>(0.0, 0.0)));
+			Iterator<Map.Entry<Integer, Interval<Double>>> iter = idtmc.getTransitionsIterator(i);
+			while (iter.hasNext()) {
+				Map.Entry<Integer, Interval<Double>> entry = iter.next();
+				int to = entry.getKey();
+				Interval<Double> interval = entry.getValue();
+				marginal.set(to, interval);
+				if (interval != null && (interval.getLower() > 0.0 || interval.getUpper() > 0.0)) {
+					supportSet.add(entry.getKey());
+				}
+			}
+			marginals.add(marginal);
+		}
+		List<Integer> support = new ArrayList<>(supportSet);
+		mainLog.println("Marginals: " + marginals.size() );
+		//mainLog.println("support: " + support);
+		UDistributionVertices<Double> uDist = new UDistributionVertices<>(marginals, support, true);
+
+
+
+		double[][][] extremeDistr = uDist.enumerateVerticesFromMarginals(marginals, false);
+		mainLog.println("extremeDistr size: " + extremeDistr.length);
+
+		for (int m = 0; m < extremeDistr.length; m++) {
+			mainLog.println("Marginal " + m + ":");
+			double[][] vertices = extremeDistr[m];
+			for (int v = 0; v < vertices.length; v++) {
+				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
+			}
+		}
+
+		// New above
+		IDTMCModelChecker mcProduct = new IDTMCModelChecker(this);
+		mcProduct.inheritSettings(this);
+		ModelCheckerResult res = mcProduct.computeReachProbs(product.getProductModel(), acc, minMax,extremeDistr,partitions);
+		StateValues probsProduct = StateValues.createFromArrayResult(res, product.getProductModel());
+
+		// Output vector over product, if required
+		if (getExportProductVector()) {
+			mainLog.println("\nExporting product solution vector matrix to file \"" + getExportProductVectorFilename() + "\"...");
+			PrismFileLog out = new PrismFileLog(getExportProductVectorFilename());
+			probsProduct.print(out, false, false, false, false);
+			out.close();
+		}
+
+		// Mapping probabilities in the original model
+		StateValues probs = product.projectToOriginalModel(probsProduct);
+		probsProduct.clear();
+
+		return probs;
+	}
 	
 	@Override
 	@SuppressWarnings("unchecked")
@@ -72,9 +192,92 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// Find accepting states + compute reachability probabilities
 		BitSet acc = ((AcceptanceReach)product.getAcceptance()).getGoalStates();
 		mainLog.println("\nComputing reachability probabilities...");
+
+
+		// build partitions of states
+		int numOfPartitions = model.getNumStates(); //Do they start at 0?
+		List<Set<Integer>> partitions = new ArrayList<>(numOfPartitions);
+		for (int i = 0; i < numOfPartitions; i++) {
+			partitions.add(new LinkedHashSet<>());
+		}
+		for (int i=0; i<product.productModel.getNumStates(); i++){
+			partitions.get(product.getModelState(i)).add(i);
+		}
+
+		// build extreme distributions
+		// index of partition --> list of extreme distributions
+
+		mainLog.println("numofOriginal " + product.productModel.getNumStates());
+		mainLog.println("numofpartitions: " + numOfPartitions);
+		mainLog.println("numofstates: " + product.productModel.getNumStates());
+		for (int i=0; i<product.productModel.getNumStates(); i++){
+			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+		}
+		mainLog.println("partitions:" + partitions);
+
+
+
+
+//		List<double[][][]> extremeDistr = new ArrayList<>(numOfPartitions);
+		IDTMC<Double> idtmc = (IDTMC<Double>) model;
+		List<List<Interval<Double>>> marginals = new ArrayList<>();
+		Set<Integer> supportSet = new LinkedHashSet<>();
+
+		int numStatesModel = idtmc.getNumStates();
+		for (int i = 0; i < numOfPartitions; i++) {
+			List<Interval<Double>> marginal = new ArrayList<>(Collections.nCopies(numStatesModel, new Interval<>(0.0, 0.0)));
+			Iterator<Map.Entry<Integer, Interval<Double>>> iter = idtmc.getTransitionsIterator(i);
+			while (iter.hasNext()) {
+				Map.Entry<Integer, Interval<Double>> entry = iter.next();
+				int to = entry.getKey();
+				Interval<Double> interval = entry.getValue();
+				marginal.set(to, interval);
+
+				if (interval != null && (interval.getLower() > 0.0 || interval.getUpper() > 0.0)) {
+					supportSet.add(entry.getKey());
+				}
+			}
+			marginals.add(marginal);
+		}
+		List<Integer> support = new ArrayList<>(supportSet);
+		mainLog.println("Marginals: " + marginals.size() );
+		//mainLog.println("support: " + support);
+		UDistributionVertices<Double> uDist = new UDistributionVertices<>(marginals, support, true);
+
+
+
+		double[][][] extremeDistr = uDist.enumerateVerticesFromMarginals(marginals, false);
+		mainLog.println("extremeDistr size: " + extremeDistr.length);
+
+		for (int m = 0; m < extremeDistr.length; m++) {
+			mainLog.println("Marginal " + m + ":");
+			double[][] vertices = extremeDistr[m];
+			for (int v = 0; v < vertices.length; v++) {
+				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
+			}
+		}
+		//mainLog.println("organised: [starting state][action][end state]" + extremeDistr[1][0][0]);
+
+
+
+
+
+
+
+		//List<Set<Int>> --> Partitions
+		//Map: Partition --> extreme distributions
+
+
+//		IDTMC<Double> idtmc = (IDTMC<Double>) model;
+//		int s = 0;
+//		Iterator<Map.Entry<Integer, Interval<Double>>> x = idtmc.getTransitionsIterator(s);
+//		int q = product.getAutomatonState(s);
+		//
+
+
 		IDTMCModelChecker mcProduct = new IDTMCModelChecker(this);
 		mcProduct.inheritSettings(this);
-		ModelCheckerResult res = mcProduct.computeReachProbs(product.getProductModel(), acc, minMax);
+		ModelCheckerResult res = mcProduct.computeReachProbs(product.getProductModel(), acc, minMax, extremeDistr, partitions);
 		StateValues probsProduct = StateValues.createFromArrayResult(res, product.getProductModel());
 
 		// Output vector over product, if required
@@ -256,9 +459,9 @@ public class IDTMCModelChecker extends ProbModelChecker
 	 * @param target Target states
 	 * @param minMax Min/max info
 	 */
-	public ModelCheckerResult computeReachProbs(IDTMC<Double> idtmc, BitSet target, MinMax minMax) throws PrismException
+	public ModelCheckerResult computeReachProbs(IDTMC<Double> idtmc, BitSet target, MinMax minMax,double[][][] extremeDistr, List<Set<Integer>> partitions) throws PrismException
 	{
-		return computeReachProbs(idtmc, null, target, minMax);
+		return computeReachProbs(idtmc, null, target, minMax,extremeDistr, partitions);
 	}
 
 	/**
@@ -271,7 +474,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 	 */
 	public ModelCheckerResult computeUntilProbs(IDTMC<Double> idtmc, BitSet remain, BitSet target, MinMax minMax) throws PrismException
 	{
-		return computeReachProbs(idtmc, remain, target, minMax);
+		return computeReachProbs(idtmc, remain, target, minMax, null,null);
 	}
 
 	/**
@@ -283,18 +486,22 @@ public class IDTMCModelChecker extends ProbModelChecker
 	 * @param target Target states
 	 * @param minMax Min/max info
 	 */
-	public ModelCheckerResult computeReachProbs(IDTMC<Double> idtmc, BitSet remain, BitSet target, MinMax minMax) throws PrismException
+	public ModelCheckerResult computeReachProbs(IDTMC<Double> idtmc, BitSet remain, BitSet target, MinMax minMax, double[][][] extremeDistr, List<Set<Integer>> partitions) throws PrismException
 	{
 		// Switch to a supported method, if necessary
 		IMDPSolnMethod imdpSolnMethod = this.imdpSolnMethod;
+		mainLog.println("imdpSolnMethod: " + imdpSolnMethod);
 		switch (imdpSolnMethod)
 		{
 		case VALUE_ITERATION:
 		case GAUSS_SEIDEL:
 			break; // supported
+		case LINEAR_PROGRAMMING:
+			break;
 		default:
 			imdpSolnMethod = IMDPSolnMethod.GAUSS_SEIDEL;
 			mainLog.printWarning("Switching to solution method \"" + imdpSolnMethod.fullName() + "\"");
+			mainLog.println("Switching to solution method \"" + imdpSolnMethod.fullName() + "\"");
 		}
 
 		// Start probabilistic reachability
@@ -362,6 +569,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 
 		// Compute probabilities (if needed)
 		ModelCheckerResult res;
+		double[] soln = null;
 		if (numYes + numNo < n) {
 			IterationMethod iterationMethod = null;
 			switch (imdpSolnMethod) {
@@ -371,6 +579,21 @@ public class IDTMCModelChecker extends ProbModelChecker
 			case GAUSS_SEIDEL:
 				iterationMethod = new IterationMethodGS(termCrit == TermCrit.ABSOLUTE, termCritParam, false);
 				break;
+				case  LINEAR_PROGRAMMING:
+					//int[] strat = null;
+					soln = solveReachProbsLPWithGurobi(idtmc,no, yes, unknown, extremeDistr, partitions, minMax.isMinUnc(), null); //double[][][] extremeDistr,List<Set<Integer>> partitions ,boolean min, int strat[]
+					timer = System.currentTimeMillis() - timer;
+					mainLog.print("Linear programming");
+					mainLog.println(" took " + timer / 1000.0 + " seconds.");
+
+					// Return results
+					// (Note we don't add the strategy - the one passed in is already there
+					// and might have some existing choices stored for other states).
+					res = new ModelCheckerResult();
+					res.soln = soln;
+					res.accuracy = new Accuracy(Accuracy.AccuracyLevel.EXACT_FLOATING_POINT);
+					res.timeTaken = timer / 1000.0;
+					return res;
 			default:
 				throw new PrismException("Unknown solution method " + imdpSolnMethod.fullName());
 			}
@@ -499,5 +722,275 @@ public class IDTMCModelChecker extends ProbModelChecker
 		res.timeTaken = timer / 1000.0;
 
 		return res;
+	}
+
+	/**
+	 * Solve the linear program for reachability probabilities with Gurobi.
+	 * @param idtmc: The IDTMC
+	 * @param no: Probability 0 states
+	 * @param yes: Probability 1 states
+	 * @param min: Min or max probabilities (true=min, false=max)
+	 * @param strat Storage for (memoryless) strategy choice indices (ignored if null)
+	 */
+	protected double[] solveReachProbsLPWithGurobi(IDTMC<Double> idtmc, BitSet no, BitSet yes, BitSet unknown, double[][][] extremeDistr,List<Set<Integer>> partitions ,boolean min, int strat[]) throws PrismException
+	{
+		double[] soln = null;
+
+		//inverse partition
+		int n = idtmc.getNumStates();
+		List<Integer> inversePartition = new ArrayList<>(Collections.nCopies(idtmc.getNumStates(), -1));
+		for (int i = 0; i < partitions.size(); i++) {
+			for (int val : partitions.get(i)) {
+				inversePartition.set(val, i);
+			}
+		}
+		mainLog.println("inversePartition=" + inversePartition);
+
+		//getActionVars
+		Map<Integer, Map<Integer, Integer>> getAction = new HashMap<>();
+		int actionVarsCount = 0;
+		mainLog.println("partitions.size()=" + partitions.size());
+		mainLog.println("extremeDistr.length=" + extremeDistr.length);
+		mainLog.println("idtmc.numstates" + idtmc.getNumStates());
+		for (int x=0; x <partitions.size(); x++) {
+			if (extremeDistr[x].length>1){
+				for (int a=0; a<extremeDistr[x].length; a++) {
+					getAction.computeIfAbsent(x, k -> new HashMap<>()).put(a, n+actionVarsCount);
+					actionVarsCount++;
+				}
+			}
+		}
+		mainLog.println("getAction in LP: " + getAction);
+		mainLog.println("actionVarsCount=" + actionVarsCount);
+
+
+
+		// old here:
+
+
+
+
+		//make sure there is exactly 1 initial state
+		Iterable<Integer> initialStates= idtmc.getInitialStates();
+		int count = 0;
+		for (Integer state : idtmc.getInitialStates()) {count++;}
+		if (count != 1){throw new PrismException("Wrong number of initial states");}
+
+		// build support
+		List<Set<Integer>> supportProd = new ArrayList<>();
+		for (int i=0; i<idtmc.getNumStates(); i++) {
+			supportProd.add(new LinkedHashSet<>());
+		}
+
+		for  (int i=0; i<idtmc.getNumStates(); i++){
+			//int j = partitions.get(i).iterator().next();
+			Iterator<Map.Entry<Integer, Interval<Double>>> iter = idtmc.getTransitionsIterator(i);
+			while (iter.hasNext()) {
+				Map.Entry<Integer, Interval<Double>> entry = iter.next();
+				Interval<Double> interval = entry.getValue();
+				if (interval != null && (interval.getLower() > 0.0 || interval.getUpper() > 0.0)) {
+					supportProd.get(i).add(entry.getKey());
+				}
+			}
+		}
+		mainLog.println("supportProd: " + supportProd);
+
+		List<Set<Integer>> supportOriginal = new ArrayList<>();
+		for (int i=0; i<partitions.size(); i++) {
+			supportOriginal.add(new LinkedHashSet<>());
+		}
+		for  (int i=0; i<idtmc.getNumStates(); i++){
+			Set<Integer> prodSupports = supportProd.get(i);
+			int originalState = inversePartition.get(i);
+			for (int prodState:  prodSupports) {
+				supportOriginal.get(originalState).add(inversePartition.get(prodState));
+			}
+		}
+		mainLog.println("support: " + supportOriginal);
+
+
+
+		//
+
+
+		int addVarsCount = 0;
+		Map<Integer, Map<Integer, Map<Integer,Integer>>> getExtraVar = new HashMap<>();
+		for (int x=0; x <partitions.size(); x++) {
+			if (extremeDistr[x].length > 1) {
+				for (int a=0; a<extremeDistr[x].length; a++) {
+					for (int y: supportOriginal.get(x)) {
+						for (int z:partitions.get(y)){
+							if (!no.get(z) && !yes.get(z)){
+								 getExtraVar.computeIfAbsent(x, k -> new HashMap<>()).computeIfAbsent(a, k -> new HashMap<>()).put(z, n+actionVarsCount+addVarsCount);
+								 addVarsCount ++;
+							}
+						}
+					}
+				}
+			}
+		}
+		mainLog.println("getExtraVar: " + getExtraVar);
+		mainLog.println("addVarsCount: " + addVarsCount);
+
+
+
+
+
+		try {
+			// Initialise LP solver
+			GRBEnv env = new GRBEnv("gurobi.log");
+			env.set(GRB.IntParam.OutputFlag, 1);
+			GRBModel model = new GRBModel(env);
+			// Set up LP variables + objective function
+			GRBVar xVars[] = new GRBVar[n+actionVarsCount+addVarsCount];
+
+
+
+			for (int s = 0; s < n; s++) {
+				xVars[s] = model.addVar(0.0, 1.0, idtmc.isInitialState(s) ? 1.0 : 0.0, GRB.CONTINUOUS, "x" + s);
+			}
+			for (int s = 0; s < actionVarsCount; s++) {
+				xVars[n+s] = model.addVar(0.0, 1.0,  0.0, GRB.BINARY, "a" + s);
+			}
+			for (int s = 0; s < addVarsCount; s++) {
+				xVars[n+actionVarsCount+s] = model.addVar(0.0, 1.0, 0.0, GRB.CONTINUOUS, "z" + s);
+			}
+			model.set(GRB.IntAttr.ModelSense, min ? 1 : -1);
+
+			int counter = 0;
+			//set up integer constraints
+			int positionCounter = n;
+
+			// sum of action constraints
+			for (int m = 0; m < partitions.size(); m++) {
+				if (extremeDistr[m].length > 1){
+					GRBLinExpr expr = new GRBLinExpr();
+					for (int v = 0; v < extremeDistr[m].length; v++) {
+						expr.addTerm(1.0, xVars[positionCounter]);
+						positionCounter++;
+					}
+					model.addConstr(expr, GRB.EQUAL, 1.0, "c" + counter++);
+				}
+			}
+
+
+			// added constraints for extra variables, such that ...
+			for (int x=0; x <partitions.size(); x++) {
+				if (extremeDistr[x].length > 1) {
+					for (int a=0; a<extremeDistr[x].length; a++) {
+						int alpha = getAction.get(x).get(a);
+						for (int y: supportOriginal.get(x)) {
+							for (int z:partitions.get(y)){
+								if (!no.get(z) && !yes.get(z)){
+
+
+
+									int posZ =getExtraVar.get(x).get(a).get(z);
+
+									//x = z
+									GRBLinExpr expr1 = new GRBLinExpr();
+									expr1.addTerm(1.0, xVars[posZ]);
+									expr1.addTerm(-1.0, xVars[alpha]);
+									model.addConstr(expr1, GRB.LESS_EQUAL, 0.0, "c" + counter++);
+											//computeIfAbsent(x, k -> new HashMap<>()).computeIfAbsent(a, k -> new HashMap<>()).put(z, n+actionVarsCount+addVarsCount);
+									GRBLinExpr expr2 = new GRBLinExpr();
+									expr2.addTerm(1.0, xVars[posZ]);
+									expr2.addTerm(-1.0, xVars[z]);
+									model.addConstr(expr2, GRB.LESS_EQUAL, 0.0, "c" + counter++);
+
+									GRBLinExpr expr3 = new GRBLinExpr();
+									expr3.addTerm(1.0, xVars[posZ]);
+									expr3.addTerm(-1.0, xVars[z]);
+									expr3.addTerm(-1.0, xVars[alpha]);
+									model.addConstr(expr3, GRB.GREATER_EQUAL, -1.0, "c" + counter++);
+								}
+							}
+						}
+					}
+				}
+			}
+
+
+
+			// Set up arrays for passing LP to solver
+			double row[] = new double[n + 1];
+			int colno[] = new int[n + 1];
+			// Add constraints
+			mainLog.println("counter before adding traditional constraints:" + counter);
+			mainLog.println("yes:" + yes);
+			mainLog.println("no:" + no);
+
+			for (int s = 0; s < n; s++) {
+				if (yes.get(s)) {
+					GRBLinExpr expr = new GRBLinExpr();
+					expr.addTerm(1.0, xVars[s]);
+					model.addConstr(expr, GRB.EQUAL, 1.0, "c" + counter++);
+					mainLog.println("Added constaint for" + s + ", counter:" + counter);
+				} else if (no.get(s)) {
+					GRBLinExpr expr = new GRBLinExpr();
+					expr.addTerm(1.0, xVars[s]);
+					model.addConstr(expr, GRB.EQUAL, 0.0, "c" + counter++);
+					mainLog.println("Added constaint for" + s + ", counter:" + counter);
+				} else {
+					GRBLinExpr expr = new GRBLinExpr();
+					expr.addTerm(1.0, xVars[s]);
+
+
+					if(extremeDistr[inversePartition.get(s)].length ==1){
+						//first Case, only 1 action
+
+						Set<Integer> set = supportProd.get(s);
+						for (int i: set) {
+							double coeff =- extremeDistr[inversePartition.get(s)][0][inversePartition.get(i)];
+							expr.addTerm(coeff, xVars[i]);
+							mainLog.print(coeff);
+						}
+						mainLog.println("Added for single successor");
+
+					} else if (extremeDistr[inversePartition.get(s)].length >1) {
+						Set<Integer> successor = supportProd.get(s);
+						for (int ithSuccessor: successor ) {
+							if (yes.get(ithSuccessor)){
+								for (int a = 0; a < extremeDistr[inversePartition.get(s)].length; a++) {
+									double coeff = - extremeDistr[inversePartition.get(s)][a][inversePartition.get(ithSuccessor)];
+
+									expr.addTerm(coeff, xVars[getAction.get(inversePartition.get(s)).get(a)]);
+
+								}
+								mainLog.println("ithSuccessor is:" + ithSuccessor);
+							} else if(!no.get(ithSuccessor)){
+								for (int a = 0; a < extremeDistr[inversePartition.get(s)].length; a++) {
+									double coeff =- extremeDistr[inversePartition.get(s)][a][inversePartition.get(ithSuccessor)];
+									expr.addTerm(coeff, xVars[getExtraVar.get(inversePartition.get(s)).get(a).get(ithSuccessor)]);
+								}
+								mainLog.println("ithSuccessor in ? is :" + ithSuccessor);
+							}
+						}
+					}
+
+					model.addConstr(expr, GRB.EQUAL, 0.0, "c" + counter++);
+					mainLog.println("Added constaint for" + s + ",in ExtraWork counter:" + counter);
+				}
+			}
+			// Solve LP
+			model.write("gurobi.lp");
+
+			model.optimize();
+			if (model.get(GRB.IntAttr.Status) == GRB.Status.OPTIMAL) {
+				soln = new double[n];
+				for (int s = 0; s < n; s++) {
+					soln[s] = xVars[s].get(GRB.DoubleAttr.X);
+				}
+			} else {
+				throw new PrismException("Error solving LP" + (model.get(GRB.IntAttr.Status) == GRB.Status.INFEASIBLE ? " (infeasible)" : ""));
+			}
+			// Clean up
+			model.dispose();
+			env.dispose();
+			// Return solution
+			return soln;
+		} catch (GRBException e) {
+			throw new PrismException("Error solving LP: " +e.getMessage());
+		}
 	}
 }

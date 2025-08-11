@@ -1,0 +1,11 @@
+// RESULT: 1
+Pmin=? [ (X (s=1 &  (F s=5)) ) |  (X (s=2) &   ((X X (s=4))| (X X X (s=5)))   )];
+
+// RESULT: 1
+Pmax=? [ X F s>=3 ];
+
+// RESULT: 2
+Rmin=? [ X F s>=1 ];
+
+// RESULT: 2
+Rmax=? [ X F s>=1 ];
