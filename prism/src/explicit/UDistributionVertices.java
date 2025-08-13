@@ -13,6 +13,7 @@ public class UDistributionVertices<Value> implements UDistribution<Value>{
     HashSet<Integer> supportSet;
     public double [][] vertices;
     public List<List<Interval<Value>>> marginals;
+    public double [][][] marginalVertices;
 
     protected int smartThreshholdMarginal = 20000;
     protected int smartThreshholdProduct = 20000;
@@ -60,10 +61,14 @@ public class UDistributionVertices<Value> implements UDistribution<Value>{
         for (int i : support) {
             supportSet.add(i);
         }
+        this.marginalVertices=null;
     }
 
+
+
+
     protected void buildVertices(boolean smart){
-        double[][][] marginalVertices = enumerateVerticesFromMarginals(this.marginals, smart);
+        this.marginalVertices = enumerateVerticesFromMarginals(this.marginals, smart);
 //        System.out.println("Vertices:");
 //        for (double[][] v : marginalVertices) {
 //            System.out.print("[");
@@ -80,7 +85,7 @@ public class UDistributionVertices<Value> implements UDistribution<Value>{
             this.vertices = new double[0][0];
             return;
         }
-        this.vertices = multiplyMarginalVertices(marginalVertices);
+        this.vertices = multiplyMarginalVertices(this.marginalVertices);
 //        for (double[] row : this.vertices) {
 //            System.out.println("Row: " + Arrays.toString(row));
 //        }

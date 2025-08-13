@@ -38,6 +38,11 @@ import explicit.rewards.Rewards;
 import parser.ast.Expression;
 import prism.*;
 import explicit.UDistributionVertices;
+import common.Interval;
+import common.iterable.Reducible;
+//import org.apache.commons.lang3.NotImplementedException;
+
+import java.util.*;
 
 
 import com.gurobi.gurobi.GRB;
@@ -55,7 +60,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 	// DTMCModelChecker in order to use e.g. precomputation algorithms
 	protected DTMCModelChecker mcDTMC = null;
 
-	protected IMDPSolnMethod imdpSolnMethod = IMDPSolnMethod.LINEAR_PROGRAMMING;
+	//protected IMDPSolnMethod imdpSolnMethod = IMDPSolnMethod.LINEAR_PROGRAMMING;
 	
 	/**
 	 * Create a new IDTMCModelChecker, inherit basic state from parent (unless null).
@@ -97,7 +102,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 		mainLog.println("\nComputing reachability probabilities...");
 
 
-
+		mainLog.println("\n ProbPath Formula LTL");
 
 
 		//New
@@ -114,49 +119,52 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// build extreme distributions
 		// index of partition --> list of extreme distributions
 
-		mainLog.println("numofOriginal " + product.productModel.getNumStates());
+		mainLog.println("numofOriginal " + model.getNumStates());
 		mainLog.println("numofpartitions: " + numOfPartitions);
 		mainLog.println("numofstates: " + product.productModel.getNumStates());
 		for (int i=0; i<product.productModel.getNumStates(); i++){
-			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+//			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
 		}
 		mainLog.println("partitions:" + partitions);
 
 		IDTMC<Double> idtmc = (IDTMC<Double>) model;
-		List<List<Interval<Double>>> marginals = new ArrayList<>();
-		Set<Integer> supportSet = new LinkedHashSet<>();
-
-		int numStatesModel = idtmc.getNumStates();
-		for (int i = 0; i < numOfPartitions; i++) {
-			List<Interval<Double>> marginal = new ArrayList<>(Collections.nCopies(numStatesModel, new Interval<>(0.0, 0.0)));
+		double[][][] extremeDistr = new double[model.getNumStates()][][];
+		for (int i = 0; i < model.getNumStates(); i++) {
+			List<Interval<Double>> intervals = new ArrayList<>();
+			List<Integer> targets = new ArrayList<>();
 			Iterator<Map.Entry<Integer, Interval<Double>>> iter = idtmc.getTransitionsIterator(i);
+
 			while (iter.hasNext()) {
 				Map.Entry<Integer, Interval<Double>> entry = iter.next();
-				int to = entry.getKey();
-				Interval<Double> interval = entry.getValue();
-				marginal.set(to, interval);
-				if (interval != null && (interval.getLower() > 0.0 || interval.getUpper() > 0.0)) {
-					supportSet.add(entry.getKey());
+				if (entry.getValue().getLower() > 0.0 || entry.getValue().getUpper() > 0.0) {
+					targets.add(entry.getKey());
+					intervals.add(entry.getValue());
 				}
 			}
-			marginals.add(marginal);
-		}
-		List<Integer> support = new ArrayList<>(supportSet);
-		mainLog.println("Marginals: " + marginals.size() );
-		//mainLog.println("support: " + support);
-		UDistributionVertices<Double> uDist = new UDistributionVertices<>(marginals, support, true);
 
-
-
-		double[][][] extremeDistr = uDist.enumerateVerticesFromMarginals(marginals, false);
-		mainLog.println("extremeDistr size: " + extremeDistr.length);
-
-		for (int m = 0; m < extremeDistr.length; m++) {
-			mainLog.println("Marginal " + m + ":");
-			double[][] vertices = extremeDistr[m];
-			for (int v = 0; v < vertices.length; v++) {
-				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
+			if (targets.isEmpty()) {
+				extremeDistr[i] = new double[][] { new double[model.getNumStates()] };
+				continue;
 			}
+
+			//extreme distributions for state i
+			UDistributionVertices<Double> uDist = new UDistributionVertices<>(
+					Collections.singletonList(intervals),
+					Collections.singletonList(i),
+					true
+			);
+			mainLog.println("marginalVertices size: " + uDist.marginalVertices[0][0].length);
+
+			double[][] mappedVertices = new double[uDist.marginalVertices[0].length][model.getNumStates()];
+			for (int v = 0; v < uDist.marginalVertices[0].length; v++) {
+				double[] fullVec = new double[model.getNumStates()];
+				for (int t = 0; t < targets.size(); t++) {
+					fullVec[targets.get(t)] = uDist.marginalVertices[0][v][t];
+				}
+				mappedVertices[v] = fullVec;
+			}
+
+			extremeDistr[i] = mappedVertices;
 		}
 
 		// New above
@@ -192,7 +200,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// Find accepting states + compute reachability probabilities
 		BitSet acc = ((AcceptanceReach)product.getAcceptance()).getGoalStates();
 		mainLog.println("\nComputing reachability probabilities...");
-
+		mainLog.println("\n CosafeLTL");
 
 		// build partitions of states
 		int numOfPartitions = model.getNumStates(); //Do they start at 0?
@@ -207,56 +215,67 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// build extreme distributions
 		// index of partition --> list of extreme distributions
 
-		mainLog.println("numofOriginal " + product.productModel.getNumStates());
+		mainLog.println("numofOriginal " + model.getNumStates());
 		mainLog.println("numofpartitions: " + numOfPartitions);
 		mainLog.println("numofstates: " + product.productModel.getNumStates());
-		for (int i=0; i<product.productModel.getNumStates(); i++){
-			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
-		}
+//		for (int i=0; i<product.productModel.getNumStates(); i++){
+////			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+//		}
 		mainLog.println("partitions:" + partitions);
 
 
 
 
-//		List<double[][][]> extremeDistr = new ArrayList<>(numOfPartitions);
-		IDTMC<Double> idtmc = (IDTMC<Double>) model;
-		List<List<Interval<Double>>> marginals = new ArrayList<>();
-		Set<Integer> supportSet = new LinkedHashSet<>();
 
-		int numStatesModel = idtmc.getNumStates();
-		for (int i = 0; i < numOfPartitions; i++) {
-			List<Interval<Double>> marginal = new ArrayList<>(Collections.nCopies(numStatesModel, new Interval<>(0.0, 0.0)));
+		IDTMC<Double> idtmc = (IDTMC<Double>) model;
+		double[][][] extremeDistr = new double[model.getNumStates()][][];
+		for (int i = 0; i < model.getNumStates(); i++) {
+			List<Interval<Double>> intervals = new ArrayList<>();
+			List<Integer> targets = new ArrayList<>();
 			Iterator<Map.Entry<Integer, Interval<Double>>> iter = idtmc.getTransitionsIterator(i);
+
 			while (iter.hasNext()) {
 				Map.Entry<Integer, Interval<Double>> entry = iter.next();
-				int to = entry.getKey();
-				Interval<Double> interval = entry.getValue();
-				marginal.set(to, interval);
-
-				if (interval != null && (interval.getLower() > 0.0 || interval.getUpper() > 0.0)) {
-					supportSet.add(entry.getKey());
+				if (entry.getValue().getLower() > 0.0 || entry.getValue().getUpper() > 0.0) {
+					targets.add(entry.getKey());
+					intervals.add(entry.getValue());
 				}
 			}
-			marginals.add(marginal);
-		}
-		List<Integer> support = new ArrayList<>(supportSet);
-		mainLog.println("Marginals: " + marginals.size() );
-		//mainLog.println("support: " + support);
-		UDistributionVertices<Double> uDist = new UDistributionVertices<>(marginals, support, true);
 
-
-
-		double[][][] extremeDistr = uDist.enumerateVerticesFromMarginals(marginals, false);
-		mainLog.println("extremeDistr size: " + extremeDistr.length);
-
-		for (int m = 0; m < extremeDistr.length; m++) {
-			mainLog.println("Marginal " + m + ":");
-			double[][] vertices = extremeDistr[m];
-			for (int v = 0; v < vertices.length; v++) {
-				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
+			if (targets.isEmpty()) {
+				extremeDistr[i] = new double[][] { new double[model.getNumStates()] };
+				continue;
 			}
+
+			//extreme distributions for state i
+			UDistributionVertices<Double> uDist = new UDistributionVertices<>(
+					Collections.singletonList(intervals),
+					Collections.singletonList(i),
+					true
+			);
+			mainLog.println("marginalVertices size: " + uDist.marginalVertices[0][0].length);
+
+			double[][] mappedVertices = new double[uDist.marginalVertices[0].length][model.getNumStates()];
+			for (int v = 0; v < uDist.marginalVertices[0].length; v++) {
+				double[] fullVec = new double[model.getNumStates()];
+				for (int t = 0; t < targets.size(); t++) {
+					fullVec[targets.get(t)] = uDist.marginalVertices[0][v][t];
+				}
+				mappedVertices[v] = fullVec;
+			}
+
+			extremeDistr[i] = mappedVertices;
 		}
-		//mainLog.println("organised: [starting state][action][end state]" + extremeDistr[1][0][0]);
+
+
+//		mainLog.println("extremeDistr: " + extremeDistr.length);
+//		for (int m = 0; m < extremeDistr.length; m++) {
+//			mainLog.println("Marginal " + m + ":");
+//			double[][] vertices = extremeDistr[m];
+//			for (int v = 0; v < vertices.length; v++) {
+//				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
+//			}
+//		}
 
 
 
@@ -994,3 +1013,4 @@ public class IDTMCModelChecker extends ProbModelChecker
 		}
 	}
 }
+
