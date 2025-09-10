@@ -1,0 +1,9 @@
+
+//Time for model checking: 1207.349 seconds.; Result: 0.1297423433390577 (exact floating point)
+//Value in the initial state: 0.4655989300284826; Time for model checking: 0.086 seconds. Result: 0.4655989300284826 (+/- 4.189669478831954E-6 estimated; rel err 8.998451690118049E-6)
+
+Pmax=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) & (X(G ! (x=0 & y=1)))))];
+
+
+//Time for model checking: 0.075 seconds. Result: 0.4534224811836925 (+/- 4.303410265274829E-6 estimated; rel err 9.490950369378382E-6)
+Pmax=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) &  (F (x=4 & y=0) )  &  (X(G ! (x=0 & y=1)))))];

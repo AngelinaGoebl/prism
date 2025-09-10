@@ -1,0 +1,34 @@
+
+
+
+
+//DRA has 3 states, 1 Rabin pairs.
+//States:      14 (1 initial); numofstates: 41
+//static:  Value in the initial state: 0.13850842965471497,Time for model checking: 19.039 seconds.
+//dynamic: Value in the initial state: 0.4470906592743399
+Pmax=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) & (X(G ! (x=0 & y=1)))))];
+
+
+//DRA has 5 states, 1 Rabin pairs. Time for model checking: 17.789 seconds. Result: 0.1281767985382794 (exact floating point)
+Pmax=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) &  (F (x=3 & y=0) )  &  (X(G ! (x=0 & y=1)))))];
+
+
+
+Pmin=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) & (X(G ! (x=0 & y=1)))))];
+
+Pmin=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) &  (F (x=3 & y=0) )  &  (X(G ! (x=0 & y=1)))))];
+
+
+
+
+//Time:Time for model checking: 33.982 seconds. Result: 0.12817679853827932 (exact floating point)
+Pmax=? [  ((!(x=0 & y=1)) U  (((x=0 & y=1)) &  (F (x=3 & y=0) ) & (F (x=6 & y=1) )  &  (X(G ! (x=0 & y=1)))))];
+
+Pmax=? [  (F ((x=0 & y=1) &    (X(G ! (x=0 & y=1)))) ) ];
+
+
+//static:  Value in the initial state: 0.12817679853827932
+//dynamic: Value in the initial state: 0.4220111658037466
+//States:      14 (1 initial); numofstates: 52Time for model checking: 32.324 seconds.
+//DFA has 13 states.
+Pmax=? [  ((!(x=6 & y=1) & !(x=0 & y=1)) U ((x=0 & y=1) & (X ( (!(x=0 & y=1)) U ((x=3 & y=0) & (X ((!(x=0 & y=1 )) U (x=6 & y=1)))))     ) ) )];

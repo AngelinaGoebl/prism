@@ -1,0 +1,11 @@
+//DRA has 3 states, 1 Rabin pairs.
+//numofstates: 35
+//Value in the initial state: 0.5594223619424548;Time for model checking: 0.105 seconds.
+//Value in the initial state: 0.2360869524147558; Time for model checking: 19.429 seconds.
+Pmax=? [  ((!(x=0 & y=2)) U  (((x=0 & y=2)) & (X(G ! (x=0 & y=2)))))];
+
+//numofstates: 46
+//DRA has 5 states, 1 Rabin pairs.
+//Value in the initial state: 0.41838881266076633; Time for model checking: 0.063 seconds.
+// Value in the initial state: 0.14759400003033163; Time for model checking: 24.177 seconds.
+Pmax=? [  ((!(x=0 & y=2)) U  (((x=0 & y=2)) &  (F (x=1 & y=0) )  &  (X(G ! (x=0 & y=2)))))];

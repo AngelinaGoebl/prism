@@ -60,7 +60,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 	// DTMCModelChecker in order to use e.g. precomputation algorithms
 	protected DTMCModelChecker mcDTMC = null;
 
-	//protected IMDPSolnMethod imdpSolnMethod = IMDPSolnMethod.LINEAR_PROGRAMMING;
+	protected IMDPSolnMethod imdpSolnMethod = IMDPSolnMethod.LINEAR_PROGRAMMING;
 	
 	/**
 	 * Create a new IDTMCModelChecker, inherit basic state from parent (unless null).
@@ -119,13 +119,13 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// build extreme distributions
 		// index of partition --> list of extreme distributions
 
-		mainLog.println("numofOriginal " + model.getNumStates());
-		mainLog.println("numofpartitions: " + numOfPartitions);
-		mainLog.println("numofstates: " + product.productModel.getNumStates());
-		for (int i=0; i<product.productModel.getNumStates(); i++){
-//			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
-		}
-		mainLog.println("partitions:" + partitions);
+//		mainLog.println("numofOriginal " + model.getNumStates());
+//		mainLog.println("numofpartitions: " + numOfPartitions);
+//		mainLog.println("numofstates: " + product.productModel.getNumStates());
+//		for (int i=0; i<product.productModel.getNumStates(); i++){
+////			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+//		}
+//		mainLog.println("partitions:" + partitions);
 
 		IDTMC<Double> idtmc = (IDTMC<Double>) model;
 		double[][][] extremeDistr = new double[model.getNumStates()][][];
@@ -215,13 +215,13 @@ public class IDTMCModelChecker extends ProbModelChecker
 		// build extreme distributions
 		// index of partition --> list of extreme distributions
 
-		mainLog.println("numofOriginal " + model.getNumStates());
-		mainLog.println("numofpartitions: " + numOfPartitions);
-		mainLog.println("numofstates: " + product.productModel.getNumStates());
-//		for (int i=0; i<product.productModel.getNumStates(); i++){
-////			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
-//		}
-		mainLog.println("partitions:" + partitions);
+//		mainLog.println("numofOriginal " + model.getNumStates());
+//		mainLog.println("numofpartitions: " + numOfPartitions);
+//		mainLog.println("numofstates: " + product.productModel.getNumStates());
+////		for (int i=0; i<product.productModel.getNumStates(); i++){
+//////			mainLog.println("iteration:" + i + ", belongs to: " + product.getModelState(i));
+////		}
+//		mainLog.println("partitions:" + partitions);
 
 
 
@@ -268,30 +268,6 @@ public class IDTMCModelChecker extends ProbModelChecker
 		}
 
 
-//		mainLog.println("extremeDistr: " + extremeDistr.length);
-//		for (int m = 0; m < extremeDistr.length; m++) {
-//			mainLog.println("Marginal " + m + ":");
-//			double[][] vertices = extremeDistr[m];
-//			for (int v = 0; v < vertices.length; v++) {
-//				mainLog.println("  Vertex " + v + ": " + Arrays.toString(vertices[v]));
-//			}
-//		}
-
-
-
-
-
-
-
-		//List<Set<Int>> --> Partitions
-		//Map: Partition --> extreme distributions
-
-
-//		IDTMC<Double> idtmc = (IDTMC<Double>) model;
-//		int s = 0;
-//		Iterator<Map.Entry<Integer, Interval<Double>>> x = idtmc.getTransitionsIterator(s);
-//		int q = product.getAutomatonState(s);
-		//
 
 
 		IDTMCModelChecker mcProduct = new IDTMCModelChecker(this);
@@ -901,9 +877,6 @@ public class IDTMCModelChecker extends ProbModelChecker
 						for (int y: supportOriginal.get(x)) {
 							for (int z:partitions.get(y)){
 								if (!no.get(z) && !yes.get(z)){
-
-
-
 									int posZ =getExtraVar.get(x).get(a).get(z);
 
 									//x = z
@@ -931,7 +904,7 @@ public class IDTMCModelChecker extends ProbModelChecker
 
 
 
-			// Set up arrays for passing LP to solver
+			/
 			double row[] = new double[n + 1];
 			int colno[] = new int[n + 1];
 			// Add constraints

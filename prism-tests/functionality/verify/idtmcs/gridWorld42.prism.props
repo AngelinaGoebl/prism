@@ -1,0 +1,9 @@
+//States:      15 (1 initial); DRA has 3 states, 1 Rabin pairs.numofstates: 44, extreme Distr: 42
+//Value in the initial state: 0.19428802133356374; Time for model checking: 201.626 seconds.; Result: 0.19428802133356374 (exact floating point)
+//Value in the initial state: 0.5525228249451245; Time for model checking: 0.062 seconds.; Result: 0.5525228249451245 (+/- 4.866791377375089E-6 estimated; rel err 8.808308286374321E-6)
+Pmax=? [  ((!(x=0 & y=2)) U  (((x=0 & y=2)) & (X(G ! (x=0 & y=2)))))];
+
+
+//Time for model checking: 0.071 seconds.Result: 0.27116770118266187 (+/- 2.350870107797077E-6 estimated; rel err 8.66943259667014E-6)
+//Time for model checking: 1163.518 seconds., Result: 0.14431281056696804 (exact floating point)
+Pmax=? [  ((!(x=0 & y=2)) U  (((x=0 & y=2)) &  (F (x=2 & y=0) )  &  (X(G ! (x=0 & y=2)))))];

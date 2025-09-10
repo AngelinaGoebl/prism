@@ -1,0 +1,8 @@
+
+//Value in the initial state: 0.6055761228872729; Time for model checking: 0.064 seconds.
+
+Pmax=? [  ((!(x=0 & y=3)) U  (((x=0 & y=3)) & (X(G ! (x=0 & y=3)))))];
+
+
+
+Pmax=? [  ((!(x=0 & y=3)) U  (((x=0 & y=3)) &  (F (x=2 & y=0) )  &  (X(G ! (x=0 & y=3)))))];

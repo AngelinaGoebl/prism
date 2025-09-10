@@ -1,0 +1,92 @@
+
+Pmax=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U (("even") & (X  ((d1=0) U ("uneven"))))))) ))       )   ) ]
+
+Pmax=? [  ( (d1=0) U ( (d1=1 | d1=2 | d1=3)& (X ( (d1=0) U  ((d1=1 | d1=2 | d1=3) & (X  ((d1=0) U ((d1=1 | d1=2 | d1=3) )))) ))       )   ) ]
+
+Pmax=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U (("even") & (X  ((d1=0) U ("uneven"))))))) ))       )   )  |  ( (d1=0) U ( ("uneven")& (X ( (d1=0) U  (("even") & (X  ((d1=0) U (("uneven") & (X  ((d1=0) U ("even"))))))) ))       )   ) ]
+
+Pmin=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U (("even") & (X  ((d1=0) U ("uneven"))))))) ))       )   )  |  ( (d1=0) U ( ("uneven")& (X ( (d1=0) U  (("even") & (X  ((d1=0) U (("uneven") & (X  ((d1=0) U ("even"))))))) ))       )   ) ]
+
+
+Pmax=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("even") & (X  ((d1=0) U ("even")))) ))       )   ) |  ( (d1=0) U ( ("uneven")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U ("uneven")))) ))       )   )]
+
+
+Pmin=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("even") & (X  ((d1=0) U ("even")))) ))       )   ) |  ( (d1=0) U ( ("uneven")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U ("uneven")))) ))       )   )]
+
+
+Pmax=? [  ( (d1=0) U ( ("even")& (X ( (d1=0) U  (("even") & (X  ((d1=0) U (("even") & (X ( (d1=0)  U (("even")& (X  ( (d1=0) U  ("even") ) )))))))) )))) | ( (d1=0) U ( ("uneven")& (X ( (d1=0) U  (("uneven") & (X  ((d1=0) U (("uneven") & (X ( (d1=0)  U (("uneven")& (X  ( (d1=0) U  ("uneven") ) )))))))) )))) ]
+
+//States:      13,numofstates: 49Time for constructing DFA: 0.017 seconds, DFA has 12 states.
+//vars 14 + 75,constrainits = 134
+// first a one, then a two, then a three is thrown
+//static  eps= 0.1:  Value in the initial state: 0.007593749999999999, Time for model checking: 0.076 seconds.
+//dynamic eps= 0.1: Value in the initial state: 0.02295727891172905,  Time for model checking: 0.046 seconds.
+//static  eps= 0.05:  Value in the initial state: 0.006081782249672723, Time for model checking: 0.076 seconds.
+//dynamic eps= 0.05: Value in the initial state: 0.010807981505881633,  Time for model checking: 0.043 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U (d1=3)))) ))       )   )]
+
+
+//States:      13,numofstates: 97,Time for constructing DFA: 0.161 seconds, DFA has 451 states.
+//vars: 14 + 191; constraints 386
+// 3 numbers in a row are thrown
+//static   eps= 0.1:Value in the initial state: 0.02582308149454466, Time for model checking: 0.451 seconds.
+//dynamic: eps= 0.1 Value in the initial state: 0.06377021036122148, Time for model checking: 0.142 seconds.
+//static   eps= 0.05: Value in the initial state: 0.022316721431806685, Time for model checking: 0.274 seconds.
+//dynamic: eps= 0.05: Value in the initial state: 0.03572886748926966, Time for model checking:  0.127 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U (d1=3)))) )))) | ( (d1=0) U ( (d1=2)& (X ( (d1=0) U  ((d1=3) & (X  ((d1=0) U (d1=4)))) )))) | ( (d1=0) U ( (d1=3)& (X ( (d1=0) U  ((d1=4) & (X  ((d1=0) U (d1=5)))) )))) | ( (d1=0) U ( (d1=4)& (X ( (d1=0) U  ((d1=5) & (X  ((d1=0) U (d1=6)))) ))))]
+
+
+
+
+//States:      13 (1 initial),numofstates: 225,Time for constructing DFA: 8.683 seconds, DFA has 67382 states.
+//vars:      14+465 , constrainits: 952
+// 5 times same value in a row
+//static  eps=0.1: Value in the initial state: 0.002411762182023831, Time for model checking: 8.749 seconds.,Linear programming took 0.59 seconds.
+//dynamic eps=0.1: Value in the initial state: 0.006524698980578702,  Time for model checking: 7.952 seconds.,Probabilistic reachability took 0.007 seconds.
+//static  eps=0.05: Value in the initial state: 0.0010841292263007417, Time for model checking: 8.476 seconds.,Linear programming took 0.562 seconds.
+//dynamic eps=0.05: Value in the initial state: 0.0023896052538501097,  Time for model checking: 8.147 seconds.,Probabilistic reachability took 0.01 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=1) & (X  ((d1=0) U ((d1=1) & (X ( (d1=0)  U ((d1=1)& (X  ( (d1=0) U  (d1=1) ) )))))))) )))) | ( (d1=0) U ( (d1=2)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U ((d1=2) & (X ( (d1=0)  U ((d1=2)& (X  ( (d1=0) U  (d1=2) ) )))))))) )))) | ( (d1=0) U ( (d1=3)& (X ( (d1=0) U  ((d1=3) & (X  ((d1=0) U ((d1=3) & (X ( (d1=0)  U ((d1=3)& (X  ( (d1=0) U  (d1=3) ) )))))))) )))) | ( (d1=0) U ( (d1=4)& (X ( (d1=0) U  ((d1=4) & (X  ((d1=0) U ((d1=4) & (X ( (d1=0)  U ((d1=4)& (X  ( (d1=0) U  (d1=4) ) )))))))) )))) | ( (d1=0) U ( (d1=5)& (X ( (d1=0) U  ((d1=5) & (X  ((d1=0) U ((d1=5) & (X ( (d1=0)  U ((d1=5)& (X  ( (d1=0) U  (d1=5) ) )))))))) )))) | ( (d1=0) U ( (d1=6)& (X ( (d1=0) U  ((d1=6) & (X  ((d1=0) U ((d1=6) & (X ( (d1=0)  U ((d1=6)& (X  ( (d1=0) U  (d1=6) ) )))))))) ))))]
+
+
+
+//States:      13 (1 initial),  numofstates: 129,Time for constructing DFA: 0.482 seconds, DFA has 2977 states.
+//vars 14+ 257, constraints: 520
+// 3 times the same value in a row
+//static  eps=0.1: Value in the initial state: 0.04119016021257042, Time for model checking: 0.815 seconds.
+//dynamic eps=0.1: Value in the initial state: 0.08077560656081703,  0.618 seconds.
+//static  eps=0.05: Value in the initial state: 0.030907911959793172, Time for model checking: 0.828 seconds.
+//dynamic eps=0.05: Value in the initial state: 0.04888358823620356, 0.599 seconds.
+Pmax=? [ ( (d1=0) U ((d1=1) & (X((d1=0)U((d1=1) &(X ( (d1=0)U (d1=1)))))))) | ( (d1=0) U ((d1=2) & (X((d1=0)U((d1=2) &(X ( (d1=0)U (d1=2)))))))) | ( (d1=0) U ((d1=3) & (X((d1=0)U((d1=3) &(X ( (d1=0)U (d1=3))))))))  | ( (d1=0) U ((d1=4) & (X((d1=0)U((d1=4) &(X ( (d1=0)U (d1=4)))))))) | ( (d1=0) U ((d1=5) & (X((d1=0)U((d1=5) &(X ( (d1=0)U (d1=5)))))))) | ( (d1=0) U ((d1=6) & (X((d1=0)U((d1=6) &(X ( (d1=0)U (d1=6))))))))]
+
+
+
+
+//States:      13 (1 initial),numofstates: 57,Time for constructing DFA: 0.02 seconds, DFA has 21 states.
+//vars 14 +93 constrainits: 172
+//static  eps=0.1: Value in the initial state: 0.0014388157894736839, Time for model checking: 0.092 seconds.
+//dynamic eps=0.1: Value in the initial state: 0.006524700061999841,  Time for model checking: 0.049 seconds.
+//static  eps=0.05: Value in the initial state: 0.001100177619931849, Time for model checking: 0.091 seconds.
+//dynamic eps=0.95: Value in the initial state: 0.0023896050541792674,  Time for model checking: 0.043 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U ((d1=3) & (X ( (d1=0)  U (d1=4))))))) ))))]
+
+
+
+
+//States:      13 (1 initial),numofstates: 65Time for constructing DFA: 0.033 seconds, DFA has 38 states.
+//vars. 14 + 111,constraints: 210
+//static  eps=0.1: Value in the initial state: 1.817451523545707E-4, Time for model checking: 0.135 seconds.
+//dynamic eps=0.1: Value in the initial state: 0.001854388402992231,  Time for model checking: 0.056 seconds.
+//static  eps=0.05: Value in the initial state: 1.6320820607725566E-4, Time for model checking: 0.161 seconds.
+//dynamic eps=0.05: Value in the initial state: 5.283329252567277E-4,  Time for model checking: 0.055 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U ((d1=3) & (X ( (d1=0)  U ((d1=4)& (X  ( (d1=0) U  (d1=5) ) )))))))) ))))]
+
+
+//States:      13 (1 initial),numofstates: 73,Time for constructing DFA: 0.046 seconds, DFA has 71 states.
+//vars: 14 + 127,constrainits 242
+//
+//static  eps=0.1: Value in the initial state: 1.7086238320055194E-5, Time for model checking: 0.188 seconds.
+//dynamic eps=0.1: Value in the initial state: 5.270367033807334E-4,  Time for model checking: 0.073 seconds.
+//static  eps=0.05: Value in the initial state: 2.0260268445537994E-5, Time for model checking: 0.17 seconds.
+//dynamic eps=0.05: Value in the initial state: 1.1681247792014533E-4,  Time for model checking: 0.079 seconds.
+Pmax=? [  ( (d1=0) U ( (d1=1)& (X ( (d1=0) U  ((d1=2) & (X  ((d1=0) U ((d1=3) & (X ( (d1=0)  U ((d1=4)& (X  ( (d1=0) U  ((d1=5) & (X ( (d1=0)U (d1=6) ))) ) )))))))) ))))]
+
